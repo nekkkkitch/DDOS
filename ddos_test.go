@@ -12,7 +12,7 @@ func Test(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	ddoser, _ := New(2)
+	ddoser, _ := New(2, true)
 	ddoser.Start(req)
 	time.Sleep(time.Second)
 	ddoser.Stop()
